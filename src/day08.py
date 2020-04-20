@@ -41,64 +41,70 @@ def get_companies() -> List[Dict[str, str]]:
 
 
 def get_company_detail(queue: Queue):
-    company_info = queue.get(True, 1)
-    try:
-        name = company_info["name"]
-        url = company_info["url"]
-        recruit_info_list: List[Dict[str, str]] = []
-        response = requests.get(url)
-        if response.status_code != 200:
-            return
+    while not queue.empty():
+        company_info = queue.get(True, 1)
+        try:
+            name = company_info["name"]
+            url = company_info["url"]
+            recruit_info_list: List[Dict[str, str]] = []
+            response = requests.get(url)
+            if response.status_code != 200:
+                return
 
-        soup = soup_page(response.text)
+            soup = soup_page(response.text)
 
-        recruit_div = soup.find("div", id="NormalInfo").find("tbody")
-        if recruit_div:
-            recruit_info_elements = recruit_div.find_all("tr")
-            for recruit_element in recruit_info_elements:
-                if (
-                    "해당 조건/분류에 일치하는 채용정보가 없습니다" in recruit_element.text
-                    or "summaryView" in recruit_element.get("class")
-                ):
-                    continue
+            recruit_div = soup.find("div", id="NormalInfo").find("tbody")
+            if recruit_div:
+                recruit_info_elements = recruit_div.find_all("tr")
+                for recruit_element in recruit_info_elements:
+                    if (
+                        "해당 조건/분류에 일치하는 채용정보가 없습니다" in recruit_element.text
+                        or "summaryView" in recruit_element.get("class")
+                    ):
+                        continue
 
-                place = recruit_element.find("td", class_="local").text
-                title = (
-                    recruit_element.find("td", class_="title")
-                    .find("span", class_="title")
-                    .text
+                    place = recruit_element.find("td", class_="local").text
+                    title = (
+                        recruit_element.find("td", class_="title")
+                        .find("span", class_="title")
+                        .text
+                    )
+                    time = ""
+                    time_element = recruit_element.find("td", class_="data").find(
+                        "span", class_="time"
+                    )
+                    if time_element:
+                        time = time_element.text
+                    pay = recruit_element.find("td", class_="pay").text
+                    date = recruit_element.find("td", class_="regDate").text
+
+                    if place and title and time and pay and date:
+                        recruit_info = {
+                            "place": place,
+                            "title": title,
+                            "time": time,
+                            "pay": pay,
+                            "date": date,
+                        }
+                        recruit_info_list.append(recruit_info)
+
+            if not os.path.exists("./data"):
+                os.mkdir("./data")
+            with open(
+                f"./data/{name}.csv", "w", newline="", encoding="utf-8"
+            ) as csvfile:
+                writer = csv.DictWriter(
+                    csvfile, fieldnames=["place", "title", "time", "pay", "date"]
                 )
-                time = (
-                    recruit_element.find("td", class_="data")
-                    .find("span", class_="time")
-                    .text
-                )
-                pay = recruit_element.find("td", class_="pay").text
-                date = recruit_element.find("td", class_="regDate").text
+                for recruit_info in recruit_info_list:
+                    writer.writerow(recruit_info)
 
-                if place and title and time and pay and date:
-                    recruit_info = {
-                        "place": place,
-                        "title": title,
-                        "time": time,
-                        "pay": pay,
-                        "date": date,
-                    }
-                    recruit_info_list.append(recruit_info)
+        except ConnectionError:
+            print(f"{company_info['url']} is down!")
 
-        with open(f"./data/{name}.csv", "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.DictWriter(
-                csvfile, fieldnames=["place", "title", "time", "pay", "date"]
-            )
-            for recruit_info in recruit_info_list:
-                writer.writerow(recruit_info)
-
-    except ConnectionError:
-        print(f"{company_info['url']} is down!")
-
-    except Exception as e:
-        print(e)
-        print(traceback.format_exc())
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
 
 
 class Worker:
