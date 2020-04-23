@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head></head>
+    <title>Nomad News | {{ title }} </title>
+    <link href="https://andybrewer.github.io/mvp/mvp.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <header>
+      <h1>{{ title }}</h1>
+      <div>
+        {{ points }} points | By {{ author }} | <a href="{{ url }}" target="_blank">{{ url }}</a>
+      </div>
+    </header>
+    <main>
+      {% for child in children %}
+      <div>
+        {% if not child.author %}
+        [deleted]
+        {% else %}
+        <strong>{{ child.author }}:</strong>
+        {{ child.text|safe }}
+        {% endif %}
+      </div>
+      <hr />
+      {% endfor %}
+    </main>
+  </body>
+</html>
